@@ -154,8 +154,13 @@ async fn execute_command(
 
     tokio::spawn(async move {
         let status = child.wait().await.expect("Child process encountered an error");
-        let exit_code = status.code().unwrap_or(-1);
-        window.emit("terminal-terminated", Some(format!("Process exited with code: {}", exit_code))).unwrap();
+        let exit_code = status.code().unwrap_or(1);
+        let message = if exit_code == 0 {
+            "Process exited with code: 0"
+        } else {
+            "Process exited with code: 1"
+        };
+        window.emit("terminal-terminated", Some(message)).unwrap();
     });
 
     Ok(())
