@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
 use tokio::io::{AsyncBufReadExt, BufReader};
-use window_vibrancy::{self, NSVisualEffectMaterial};
+use window_vibrancy::{self};
 use tokio::process::Command;
 use std::process::Stdio;
 use std::env;

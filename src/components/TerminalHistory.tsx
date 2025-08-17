@@ -18,14 +18,11 @@ export function TerminalHistory({ history, endOfHistoryRef }: TerminalHistoryPro
       );
     }
 
-    if (line.includes('Process exited with code: 1')) {
-      return (
-        <div key={index} className="flex items-center">
-          <span className="w-3 h-3 bg-blue-500 rounded-full mr-2"></span>
-          <span>Process started</span>
-        </div>
-      );
-    }
+    // if (line.includes('Process exited with code: 1')) {
+    //   return (
+
+    //   );
+    // }
 
     return (
       <div

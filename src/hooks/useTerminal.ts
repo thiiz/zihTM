@@ -13,11 +13,17 @@ export function useTerminal() {
   const endOfHistoryRef = useRef<HTMLDivElement>(null);
   const { suggestions } = useAutocomplete(input, currentDir);
   const [suggestionIndex, setSuggestionIndex] = useState(0);
+  const [activeSuggestion, setActiveSuggestion] = useState(0);
 
   useEffect(() => {
     const storedKey = localStorage.getItem('gemini-api-key') ?? '';
     setApiKey(storedKey);
-    
+
+    setHistory([
+      'Welcome to the Tauri + Next.js Terminal!',
+      "Type 'help' for a list of commands.",
+    ]);
+
     invoke<string>('get_current_dir')
       .then(setCurrentDir)
       .catch(console.error);
@@ -64,6 +70,16 @@ export function useTerminal() {
 
     if (currentInput === 'cls' || currentInput === 'clear') {
       setHistory([]);
+    } else if (currentInput === 'help') {
+      setHistory((prev) => [
+        ...prev,
+        '$ help',
+        'Available commands:',
+        '  ai: <prompt> - Ask Gemini a question',
+        '  clear, cls   - Clear the terminal',
+        '  exit         - Close the application',
+        '  help         - Show this help message',
+      ]);
     } else {
       setHistory((prev) => [...prev, `$ ${currentInput}`]);
 
@@ -99,6 +115,19 @@ export function useTerminal() {
         setInput(parts.join(' ') + ' ');
         setSuggestionIndex((prevIndex) => (prevIndex + 1) % suggestions.length);
       }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveSuggestion((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1));
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveSuggestion((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
+    } else if (e.key === 'Enter') {
+      if (suggestions.length > 0) {
+        const currentSuggestion = suggestions[activeSuggestion];
+        const parts = input.split(' ');
+        parts[parts.length - 1] = currentSuggestion;
+        setInput(parts.join(' ') + ' ');
+      }
     } else {
       setSuggestionIndex(0);
     }
@@ -120,15 +149,23 @@ export function useTerminal() {
     }
   };
 
+  const handleSuggestionClick = (suggestion: string) => {
+    const parts = input.split(' ');
+    parts[parts.length - 1] = suggestion;
+    setInput(parts.join(' ') + ' ');
+  };
+
   return {
     input,
     history,
     currentDir,
     suggestions,
+    activeSuggestion,
     endOfHistoryRef,
     handleInputChange,
     handleFormSubmit,
     handleKeyDown,
     analyzeLastError,
+    handleSuggestionClick,
   };
 }

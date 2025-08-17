@@ -12,11 +12,13 @@ export default function HomePage() {
     history,
     currentDir,
     suggestions,
+    activeSuggestion,
     endOfHistoryRef,
     handleInputChange,
     handleFormSubmit,
     handleKeyDown,
     analyzeLastError,
+    handleSuggestionClick,
   } = useTerminal();
 
   return (
@@ -30,9 +32,11 @@ export default function HomePage() {
       <TerminalInput
         input={input}
         suggestions={suggestions}
+        activeSuggestion={activeSuggestion}
         onInputChange={handleInputChange}
         onFormSubmit={handleFormSubmit}
         onKeyDown={handleKeyDown}
+        onSuggestionClick={handleSuggestionClick}
       />
     </div>
   );
