@@ -24,6 +24,27 @@ fn list_dir_contents(path: String) -> Result<Vec<String>, String> {
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn get_path_suggestions() -> Result<Vec<String>, String> {
+    let path_var = env::var("PATH").unwrap_or_default();
+    let mut suggestions = Vec::new();
+
+    for path in env::split_paths(&path_var) {
+        if let Ok(entries) = fs::read_dir(path) {
+            for entry in entries.flatten() {
+                if let Ok(metadata) = entry.metadata() {
+                    if metadata.is_file() {
+                        if let Some(filename) = entry.file_name().to_str() {
+                            suggestions.push(filename.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(suggestions)
+}
+
 // Gemini API Structures
 #[derive(Serialize)]
 struct GeminiRequest {
@@ -228,7 +249,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             })
             .build(),
     )
-    .invoke_handler(tauri::generate_handler![ask_gemini, execute_command, get_current_dir, list_dir_contents])
+    .invoke_handler(tauri::generate_handler![ask_gemini, execute_command, get_current_dir, list_dir_contents, get_path_suggestions])
     .run(tauri::generate_context!())?;
   Ok(())
 }

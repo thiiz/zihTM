@@ -7,6 +7,19 @@ const FREQUENT_COMMANDS = ['git', 'ls', 'cd', 'clear', 'cls', 'npm', 'pnpm', 'ya
 
 export function useAutocomplete(inputValue: string, currentDir: string) {
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [systemCommands, setSystemCommands] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchSystemCommands = async () => {
+      try {
+        const commands = await invoke<string[]>('get_path_suggestions');
+        setSystemCommands(commands);
+      } catch (error) {
+        console.error('Error fetching system commands:', error);
+      }
+    };
+    void fetchSystemCommands();
+  }, []);
 
   useEffect(() => {
     const fetchSuggestions = async () => {
@@ -23,7 +36,8 @@ export function useAutocomplete(inputValue: string, currentDir: string) {
         if (inputValue.endsWith(' ')) {
           setSuggestions([]);
         } else {
-          const filteredCommands = FREQUENT_COMMANDS.filter((cmd) => cmd.startsWith(command));
+          const allCommands = [...new Set([...FREQUENT_COMMANDS, ...systemCommands])];
+          const filteredCommands = allCommands.filter((cmd) => cmd.startsWith(command));
           setSuggestions(filteredCommands);
         }
       } else if (['cd', 'ls', 'cat', 'rm', 'mkdir'].includes(command) && (inputValue.endsWith(' ') || lastPart)) {
@@ -40,8 +54,8 @@ export function useAutocomplete(inputValue: string, currentDir: string) {
       }
     };
 
-    fetchSuggestions();
-  }, [inputValue, currentDir]);
+    void fetchSuggestions();
+  }, [inputValue, currentDir, systemCommands]);
 
   return { suggestions, setSuggestions };
 }
