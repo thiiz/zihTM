@@ -1,7 +1,5 @@
 "use client";
-import { useTerminal } from "@/hooks/useTerminal";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { TerminalHeader } from "./TerminalHeader";
 
 export default function TitleBar() {
   const startDragging = () => {
@@ -11,16 +9,12 @@ export default function TitleBar() {
   const handleMinimize = () => void getCurrentWindow().minimize();
   const handleMaximize = () => void getCurrentWindow().toggleMaximize();
   const handleClose = () => void getCurrentWindow().close();
-  const {
-    history,
-    analyzeLastError,
-  } = useTerminal();
+
   return (
     <div
       onMouseDown={startDragging}
-      className="fixed top-0 left-0 right-0 z-50 flex justify-between items-center bg-transparent h-10 select-none px-2"
+      className="fixed top-0 left-0 right-0 z-40 flex justify-between items-center bg-transparent h-10 select-none px-2"
     >
-      <TerminalHeader history={history} onAnalyzeLastError={analyzeLastError} />
       <div
         onMouseDown={(e) => {
           e.stopPropagation();

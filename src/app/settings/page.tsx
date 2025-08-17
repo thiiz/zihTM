@@ -1,16 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 export default function SettingsPage() {
   const [apiKey, setApiKey] = useState('');
 
+  const [saveMessage, setSaveMessage] = useState('');
+  useEffect(() => {
+    const storedKey = localStorage.getItem('gemini-api-key');
+    if (storedKey) {
+      setApiKey(storedKey);
+    }
+  }, []);
+
   const handleSave = () => {
     // In a real app, you'd encrypt and store this securely.
     // For now, we'll use localStorage for simplicity.
     localStorage.setItem('gemini-api-key', apiKey);
-    alert('API Key saved!');
+    setSaveMessage('API Key saved successfully!');
+    setTimeout(() => {
+      setSaveMessage('');
+    }, 3000);
   };
 
   return (
@@ -32,19 +43,20 @@ export default function SettingsPage() {
             <input
               type="password"
               value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
+              onChange={(e) => {
+                setApiKey(e.target.value);
+              }}
               placeholder="Enter your API key"
               className="flex-grow p-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <button
-              onClick={() => {
-                handleSave();
-              }}
+              onClick={handleSave}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md font-semibold"
             >
               Save Key
             </button>
           </div>
+          {saveMessage && <p className="mt-4 text-green-400">{saveMessage}</p>}
         </div>
       </main>
     </div>

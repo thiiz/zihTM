@@ -3,6 +3,14 @@ use tauri::Emitter;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use std::process::Stdio;
+use std::env;
+
+#[tauri::command]
+fn get_current_dir() -> Result<String, String> {
+    env::current_dir()
+        .map(|path| path.to_string_lossy().to_string())
+        .map_err(|e| e.to_string())
+}
 
 // Gemini API Structures
 #[derive(Serialize)]
@@ -88,11 +96,25 @@ async fn execute_command(
     command: String,
     args: Vec<String>,
 ) -> Result<(), String> {
+    if command == "cd" {
+        let new_dir = args.get(0).map_or("..", |s| s.as_str());
+        if let Err(e) = env::set_current_dir(new_dir) {
+            window.emit("terminal-output", Some(format!("[ERROR] Failed to change directory: {}", e))).unwrap();
+        } else {
+            let new_path = env::current_dir().unwrap().to_string_lossy().to_string();
+            window.emit("directory-changed", Some(new_path)).unwrap();
+        }
+        return Ok(());
+    }
+
     let full_command = format!("{} {}", command, args.join(" "));
+
+    let current_dir = env::current_dir().map_err(|e| e.to_string())?;
     
     #[cfg(windows)]
     let mut child = Command::new("cmd")
         .args(&["/C", &full_command])
+        .current_dir(&current_dir)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -102,6 +124,7 @@ async fn execute_command(
     let mut child = Command::new("sh")
         .arg("-c")
         .arg(&full_command)
+        .current_dir(&current_dir)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -142,7 +165,7 @@ async fn execute_command(
 pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_opener::init())
-    .invoke_handler(tauri::generate_handler![ask_gemini, execute_command])
+    .invoke_handler(tauri::generate_handler![ask_gemini, execute_command, get_current_dir])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }

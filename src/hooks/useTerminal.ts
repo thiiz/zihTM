@@ -8,11 +8,16 @@ export function useTerminal() {
   const [input, setInput] = useState('');
   const [history, setHistory] = useState<string[]>([]);
   const [apiKey, setApiKey] = useState('');
+  const [currentDir, setCurrentDir] = useState('');
   const endOfHistoryRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const storedKey = localStorage.getItem('gemini-api-key') ?? '';
     setApiKey(storedKey);
+    
+    invoke<string>('get_current_dir')
+      .then(setCurrentDir)
+      .catch(console.error);
   }, []);
 
   const scrollToBottom = () => {
@@ -30,6 +35,9 @@ export function useTerminal() {
       }),
       listen<string>('terminal-terminated', (event) => {
         setHistory((prev) => [...prev, event.payload]);
+      }),
+      listen<string>('directory-changed', (event) => {
+        setCurrentDir(event.payload);
       }),
     ];
 
@@ -97,6 +105,7 @@ export function useTerminal() {
   return {
     input,
     history,
+    currentDir,
     endOfHistoryRef,
     handleInputChange,
     handleFormSubmit,
