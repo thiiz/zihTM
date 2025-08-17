@@ -25,23 +25,21 @@ export default function HomePage() {
   }, [history]);
 
   useEffect(() => {
-    let unlistenOutput: (() => void) | undefined;
-    let unlistenTermination: (() => void) | undefined;
-
-    const setupListeners = async () => {
-      unlistenOutput = await listen<string>('terminal-output', (event) => {
+    const unlistenPromises = [
+      listen<string>('terminal-output', (event) => {
         setHistory((prev) => [...prev, event.payload]);
-      });
-      unlistenTermination = await listen<string>('terminal-terminated', (event) => {
+      }),
+      listen<string>('terminal-terminated', (event) => {
         setHistory((prev) => [...prev, event.payload]);
-      });
-    };
-
-    void setupListeners();
+      }),
+    ];
 
     return () => {
-      unlistenOutput?.();
-      unlistenTermination?.();
+      unlistenPromises.forEach((p) => {
+        void p.then((unlisten) => {
+          unlisten();
+        });
+      });
     };
   }, []);
 
