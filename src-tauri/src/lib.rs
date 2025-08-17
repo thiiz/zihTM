@@ -183,8 +183,16 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
   tauri::Builder::default()
     .setup(|app| {
       let window = app.get_webview_window("main").unwrap();
-      let window_clone = window.clone();
+      if let Some(monitor) = window.current_monitor()? {
+        let monitor_size = monitor.size();
+        let window_height = 400.0;
+        let window_width_percentage = 0.9; // 90% of screen width
+        let window_width = (monitor_size.width as f64 * window_width_percentage) as u32;
+        let x_position = 0;
 
+        window.set_size(tauri::PhysicalSize::new(window_width, window_height as u32))?;
+        window.set_position(tauri::PhysicalPosition::new(x_position, (monitor_size.height - window_height as u32) as i32))?;
+      }
 
       #[cfg(target_os = "macos")]
       window_vibrancy::apply_vibrancy(&window, NSVisualEffectMaterial::HudWindow, None, None)
