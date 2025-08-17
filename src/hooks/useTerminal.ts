@@ -11,8 +11,7 @@ export function useTerminal() {
   const [apiKey, setApiKey] = useState('');
   const [currentDir, setCurrentDir] = useState('');
   const endOfHistoryRef = useRef<HTMLDivElement>(null);
-  const { suggestions } = useAutocomplete(input, currentDir);
-  const [suggestionIndex, setSuggestionIndex] = useState(0);
+  const { suggestions, setSuggestions } = useAutocomplete(input, currentDir);
   const [activeSuggestion, setActiveSuggestion] = useState(0);
 
   useEffect(() => {
@@ -61,6 +60,7 @@ export function useTerminal() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value);
+    setActiveSuggestion(0);
   };
 
   const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -103,33 +103,27 @@ export function useTerminal() {
     }
 
     setInput('');
+    setSuggestions([]);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      if (suggestions.length > 0) {
-        const currentSuggestion = suggestions[suggestionIndex];
-        const parts = input.split(' ');
-        parts[parts.length - 1] = currentSuggestion;
-        setInput(parts.join(' ') + ' ');
-        setSuggestionIndex((prevIndex) => (prevIndex + 1) % suggestions.length);
+    if (suggestions.length > 0) {
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActiveSuggestion((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1));
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActiveSuggestion((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        const selectedSuggestion = suggestions[activeSuggestion];
+        if (selectedSuggestion) {
+          const parts = input.split(' ');
+          parts[parts.length - 1] = selectedSuggestion;
+          setInput(parts.join(' ') + ' ');
+          setSuggestions([]);
+        }
       }
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setActiveSuggestion((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1));
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setActiveSuggestion((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
-    } else if (e.key === 'Enter') {
-      if (suggestions.length > 0) {
-        const currentSuggestion = suggestions[activeSuggestion];
-        const parts = input.split(' ');
-        parts[parts.length - 1] = currentSuggestion;
-        setInput(parts.join(' ') + ' ');
-      }
-    } else {
-      setSuggestionIndex(0);
     }
   };
 
@@ -153,7 +147,9 @@ export function useTerminal() {
     const parts = input.split(' ');
     parts[parts.length - 1] = suggestion;
     setInput(parts.join(' ') + ' ');
+    setSuggestions([]);
   };
+
 
   return {
     input,

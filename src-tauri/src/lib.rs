@@ -6,6 +6,7 @@ use tokio::process::Command;
 use std::process::Stdio;
 use std::env;
 use std::fs;
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 #[tauri::command]
 fn get_current_dir() -> Result<String, String> {
@@ -121,7 +122,7 @@ async fn execute_command(
     let full_command = format!("{} {}", command, args.join(" "));
 
     let current_dir = env::current_dir().map_err(|e| e.to_string())?;
-    
+
     #[cfg(windows)]
     let mut child = Command::new("cmd")
         .args(&["/C", &full_command])
@@ -178,10 +179,12 @@ async fn execute_command(
 
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
+pub fn run() -> Result<(), Box<dyn std::error::Error>> {
   tauri::Builder::default()
     .setup(|app| {
       let window = app.get_webview_window("main").unwrap();
+      let window_clone = window.clone();
+
 
       #[cfg(target_os = "macos")]
       window_vibrancy::apply_vibrancy(&window, NSVisualEffectMaterial::HudWindow, None, None)
@@ -194,7 +197,31 @@ pub fn run() {
       Ok(())
     })
     .plugin(tauri_plugin_opener::init())
+    .plugin(
+        tauri_plugin_global_shortcut::Builder::new()
+            .with_shortcut("Shift+CmdOrCtrl+T")?
+            .with_shortcut("alt+space")?
+            .with_handler(|app, shortcut, event| {
+                if event.state == ShortcutState::Pressed {
+                    if let Some(window) = app.get_webview_window("main") {
+                        let is_minimized = window.is_minimized().unwrap_or(false);
+                        let is_visible = window.is_visible().unwrap_or(false);
+
+                        if is_visible && !is_minimized {
+                            let _ = window.hide();
+                        } else {
+                            if is_minimized {
+                                let _ = window.unminimize();
+                            }
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                }
+            })
+            .build(),
+    )
     .invoke_handler(tauri::generate_handler![ask_gemini, execute_command, get_current_dir, list_dir_contents])
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    .run(tauri::generate_context!())?;
+  Ok(())
 }

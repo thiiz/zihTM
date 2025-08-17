@@ -40,7 +40,12 @@ export function TerminalInput({
               {suggestions.map((suggestion, index) => (
                 <li
                   key={index}
-                  className="px-3 py-1 hover:bg-gray-700 cursor-pointer"
+                  className={`px-3 py-1 cursor-pointer ${
+                    index === activeSuggestion ? 'bg-gray-700' : 'hover:bg-gray-700'
+                  }`}
+                  onClick={() => {
+                    onSuggestionClick(suggestion);
+                  }}
                 >
                   {suggestion}
                 </li>
