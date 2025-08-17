@@ -23,8 +23,7 @@
     ],
     "security": {
       "csp": null
-    },
-    "permissions": ["core:window:allow-set-always-on-top"]
+    }
   },
   "bundle": {
     "active": true,
