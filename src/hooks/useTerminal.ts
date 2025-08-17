@@ -51,24 +51,28 @@ export function useTerminal() {
     const currentInput = input.trim();
     if (!currentInput) return;
 
-    setHistory((prev) => [...prev, `$ ${currentInput}`]);
+    if (currentInput === 'cls' || currentInput === 'clear') {
+      setHistory([]);
+    } else {
+      setHistory((prev) => [...prev, `$ ${currentInput}`]);
 
-    if (currentInput.startsWith('ai:')) {
-      const prompt = currentInput.substring(3).trim();
-      invoke('ask_gemini', { apiKey, prompt })
-        .then((response: unknown) => {
-          setHistory((prev) => [...prev, String(response)]);
-        })
-        .catch((error: unknown) => {
+      if (currentInput.startsWith('ai:')) {
+        const prompt = currentInput.substring(3).trim();
+        invoke('ask_gemini', { apiKey, prompt })
+          .then((response: unknown) => {
+            setHistory((prev) => [...prev, String(response)]);
+          })
+          .catch((error: unknown) => {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            setHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
+          });
+      } else {
+        const [command, ...args] = currentInput.split(/\s+/);
+        invoke('execute_command', { command, args }).catch((error: unknown) => {
           const errorMessage = error instanceof Error ? error.message : String(error);
           setHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
         });
-    } else {
-      const [command, ...args] = currentInput.split(/\s+/);
-      invoke('execute_command', { command, args }).catch((error: unknown) => {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        setHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
-      });
+      }
     }
 
     setInput('');

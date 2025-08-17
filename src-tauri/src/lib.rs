@@ -88,8 +88,20 @@ async fn execute_command(
     command: String,
     args: Vec<String>,
 ) -> Result<(), String> {
-    let mut child = Command::new(&command)
-        .args(&args)
+    let full_command = format!("{} {}", command, args.join(" "));
+    
+    #[cfg(windows)]
+    let mut child = Command::new("cmd")
+        .args(&["/C", &full_command])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn command: {}", e))?;
+
+    #[cfg(not(windows))]
+    let mut child = Command::new("sh")
+        .arg("-c")
+        .arg(&full_command)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
