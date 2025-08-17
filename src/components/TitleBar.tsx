@@ -1,7 +1,16 @@
 "use client";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { useEffect, useState } from "react";
 
 export default function TitleBar() {
+  const [isPinned, setIsPinned] = useState(false);
+
+  useEffect(() => {
+    const pinned = localStorage.getItem("isPinned") === "true";
+    setIsPinned(pinned);
+    void getCurrentWindow().setAlwaysOnTop(pinned);
+  }, []);
+
   const startDragging = () => {
     void getCurrentWindow().startDragging();
   };
@@ -9,6 +18,13 @@ export default function TitleBar() {
   const handleMinimize = () => void getCurrentWindow().minimize();
   const handleMaximize = () => void getCurrentWindow().toggleMaximize();
   const handleClose = () => void getCurrentWindow().close();
+
+  const handlePin = () => {
+    const newPinnedState = !isPinned;
+    setIsPinned(newPinnedState);
+    localStorage.setItem("isPinned", String(newPinnedState));
+    void getCurrentWindow().setAlwaysOnTop(newPinnedState);
+  };
 
   return (
     <div
@@ -21,7 +37,6 @@ export default function TitleBar() {
         }}
         className="flex space-x-2"
       >
-
         <button
           onClick={handleClose}
           className="w-3 h-3 bg-red-500 rounded-full"
@@ -33,6 +48,18 @@ export default function TitleBar() {
         <button
           onClick={handleMaximize}
           className="w-3 h-3 bg-green-500 rounded-full"
+        />
+      </div>
+      <div
+        onMouseDown={(e) => {
+          e.stopPropagation();
+        }}
+      >
+        <button
+          onClick={handlePin}
+          className={`w-3 h-3 rounded-full ${
+            isPinned ? "bg-blue-500" : "bg-gray-400"
+          }`}
         />
       </div>
     </div>
