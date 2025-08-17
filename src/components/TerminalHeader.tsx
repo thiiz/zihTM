@@ -12,14 +12,11 @@ export function TerminalHeader({ history, onAnalyzeLastError, currentDir }: Term
   const hasError = history.some(h => h.includes('[ERROR]'));
 
   return (
-    <header className="flex justify-between gap-x-4 items-center p-3 border-b border-gray-700">
+    <header className="flex justify-between gap-x-4 items-center p-3 border-b border-gray-700 pt-10">
       <div className="flex items-center gap-x-2">
         <Link href="/settings" className="text-blue-400 hover:underline">
           Settings
         </Link>
-      </div>
-      <div className="text-sm text-gray-400">
-        <span>{currentDir}</span>
       </div>
       <button
         onClick={onAnalyzeLastError}

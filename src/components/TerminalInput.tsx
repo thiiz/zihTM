@@ -8,7 +8,7 @@ interface TerminalInputProps {
 
 export function TerminalInput({ input, onInputChange, onFormSubmit }: TerminalInputProps) {
   return (
-    <footer className="p-3 bg-gray-800 border-t border-gray-700">
+    <footer className="p-3 bg-black/30 border-t border-gray-800">
       <form onSubmit={onFormSubmit} className="flex items-center">
         <span className="text-green-400 mr-2">$</span>
         <input

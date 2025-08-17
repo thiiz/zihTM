@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use tokio::io::{AsyncBufReadExt, BufReader};
+use window_vibrancy::{self, NSVisualEffectMaterial};
 use tokio::process::Command;
 use std::process::Stdio;
 use std::env;
@@ -164,6 +165,19 @@ async fn execute_command(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
+    .setup(|app| {
+      let window = app.get_webview_window("main").unwrap();
+
+      #[cfg(target_os = "macos")]
+      window_vibrancy::apply_vibrancy(&window, NSVisualEffectMaterial::HudWindow, None, None)
+        .expect("Unsupported platform! 'apply_vibrancy' is only supported on macOS");
+
+      #[cfg(target_os = "windows")]
+      window_vibrancy::apply_blur(&window, Some((18, 18, 18, 125)))
+        .expect("Unsupported platform! 'apply_blur' is only supported on Windows");
+
+      Ok(())
+    })
     .plugin(tauri_plugin_opener::init())
     .invoke_handler(tauri::generate_handler![ask_gemini, execute_command, get_current_dir])
     .run(tauri::generate_context!())

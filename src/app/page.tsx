@@ -17,7 +17,7 @@ export default function HomePage() {
   } = useTerminal();
 
   return (
-    <div className="flex flex-col h-screen bg-black/30 backdrop-blur-sm text-white font-mono pt-10">
+    <div className="flex flex-col h-screen text-white font-mono">
       <TerminalHeader
         history={history}
         onAnalyzeLastError={analyzeLastError}

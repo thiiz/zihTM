@@ -24,7 +24,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <TitleBar />
-        <main className="h-screen overflow-y-auto">{children}</main>
+        <main className="h-screen overflow-y-auto bg-black/30">{children}</main>
       </body>
     </html>
   );
