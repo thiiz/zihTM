@@ -14,7 +14,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="container mx-auto p-4 bg-gray-900 text-white min-h-screen">
+    <div className="container mx-auto p-4 bg-gray-900 text-white min-h-screen pt-10">
       <header className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-bold">Settings</h1>
         <Link href="/" className="text-blue-400 hover:underline">

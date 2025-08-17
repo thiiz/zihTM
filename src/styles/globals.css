@@ -12,7 +12,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
+    --background: #0a0a0a80;
     --foreground: #ededed;
   }
 }
@@ -21,6 +21,7 @@ body {
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
+  backdrop-filter: blur(10px);
 }
 
 

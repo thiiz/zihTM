@@ -16,7 +16,7 @@ export default function HomePage() {
   } = useTerminal();
 
   return (
-    <div className="flex flex-col h-screen bg-gray-900 text-white font-mono">
+    <div className="flex flex-col h-screen bg-gray-900 text-white font-mono pt-10">
       <TerminalHeader history={history} onAnalyzeLastError={analyzeLastError} />
       <TerminalHistory history={history} endOfHistoryRef={endOfHistoryRef} />
       <TerminalInput
