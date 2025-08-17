@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { useAutocomplete } from './useAutocomplete';
 
 export function useTerminal() {
   const [input, setInput] = useState('');
@@ -10,6 +11,8 @@ export function useTerminal() {
   const [apiKey, setApiKey] = useState('');
   const [currentDir, setCurrentDir] = useState('');
   const endOfHistoryRef = useRef<HTMLDivElement>(null);
+  const { suggestions } = useAutocomplete(input, currentDir);
+  const [suggestionIndex, setSuggestionIndex] = useState(0);
 
   useEffect(() => {
     const storedKey = localStorage.getItem('gemini-api-key') ?? '';
@@ -86,6 +89,21 @@ export function useTerminal() {
     setInput('');
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      if (suggestions.length > 0) {
+        const currentSuggestion = suggestions[suggestionIndex];
+        const parts = input.split(' ');
+        parts[parts.length - 1] = currentSuggestion;
+        setInput(parts.join(' ') + ' ');
+        setSuggestionIndex((prevIndex) => (prevIndex + 1) % suggestions.length);
+      }
+    } else {
+      setSuggestionIndex(0);
+    }
+  };
+
   const analyzeLastError = () => {
     const lastError = history.slice().reverse().find(line => line.includes('[ERROR]'));
     if (lastError) {
@@ -106,9 +124,11 @@ export function useTerminal() {
     input,
     history,
     currentDir,
+    suggestions,
     endOfHistoryRef,
     handleInputChange,
     handleFormSubmit,
+    handleKeyDown,
     analyzeLastError,
   };
 }

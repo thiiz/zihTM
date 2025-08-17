@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 'use client';
 
 import { TerminalHeader } from '@/components/TerminalHeader';
@@ -10,9 +11,11 @@ export default function HomePage() {
     input,
     history,
     currentDir,
+    suggestions,
     endOfHistoryRef,
     handleInputChange,
     handleFormSubmit,
+    handleKeyDown,
     analyzeLastError,
   } = useTerminal();
 
@@ -26,8 +29,10 @@ export default function HomePage() {
       <TerminalHistory history={history} endOfHistoryRef={endOfHistoryRef} />
       <TerminalInput
         input={input}
+        suggestions={suggestions}
         onInputChange={handleInputChange}
         onFormSubmit={handleFormSubmit}
+        onKeyDown={handleKeyDown}
       />
     </div>
   );

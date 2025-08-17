@@ -5,11 +5,21 @@ use window_vibrancy::{self, NSVisualEffectMaterial};
 use tokio::process::Command;
 use std::process::Stdio;
 use std::env;
+use std::fs;
 
 #[tauri::command]
 fn get_current_dir() -> Result<String, String> {
     env::current_dir()
         .map(|path| path.to_string_lossy().to_string())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_dir_contents(path: String) -> Result<Vec<String>, String> {
+    fs::read_dir(path)
+        .map_err(|e| e.to_string())?
+        .map(|res| res.map(|e| e.file_name().into_string().unwrap_or_default()))
+        .collect::<Result<Vec<String>, std::io::Error>>()
         .map_err(|e| e.to_string())
 }
 
@@ -184,7 +194,7 @@ pub fn run() {
       Ok(())
     })
     .plugin(tauri_plugin_opener::init())
-    .invoke_handler(tauri::generate_handler![ask_gemini, execute_command, get_current_dir])
+    .invoke_handler(tauri::generate_handler![ask_gemini, execute_command, get_current_dir, list_dir_contents])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }

@@ -2,24 +2,46 @@
 
 interface TerminalInputProps {
   input: string;
+  suggestions: string[];
   onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onFormSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }
 
-export function TerminalInput({ input, onInputChange, onFormSubmit }: TerminalInputProps) {
+export function TerminalInput({
+  input,
+  suggestions,
+  onInputChange,
+  onFormSubmit,
+  onKeyDown,
+}: TerminalInputProps) {
   return (
     <footer className="p-3 bg-black/30 border-t border-gray-800">
-      <form onSubmit={onFormSubmit} className="flex items-center">
-        <span className="text-green-400 mr-2">$</span>
-        <input
-          type="text"
-          value={input}
-          onChange={onInputChange}
-          className="flex-1 bg-transparent focus:outline-none"
-          placeholder="Enter a command or use 'ai:' for suggestions..."
-          autoFocus
-        />
-      </form>
+      <div className="relative">
+        <form onSubmit={onFormSubmit} className="flex items-center">
+          <span className="text-green-400 mr-2">$</span>
+          <input
+            type="text"
+            value={input}
+            onChange={onInputChange}
+            onKeyDown={onKeyDown}
+            className="flex-1 bg-transparent focus:outline-none"
+            placeholder="Enter a command or use 'ai:' for suggestions..."
+            autoFocus
+          />
+        </form>
+        {suggestions.length > 0 && (
+          <div className="absolute bottom-full left-0 w-full bg-black/90 border border-gray-800 rounded-md mb-1">
+            <ul className="text-white">
+              {suggestions.map((suggestion, index) => (
+                <li key={index} className="px-3 py-1 hover:bg-gray-700 cursor-pointer">
+                  {suggestion}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
     </footer>
   );
 }
