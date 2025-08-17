@@ -45,15 +45,14 @@ function TerminalBlock({ block }: { block: string[] }) {
   };
 
   return (
-    <div className="relative p-4 border-b border-gray-700">
+    <div className="relative p-4 border-b border-gray-700 flex flex-col">
       <button
         onClick={handleCopy}
-        className="absolute top-2 right-2 p-1.5 bg-gray-800 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-green-500"
-        style={{ position: 'sticky' }}
+        className="sticky top-2 self-end p-1.5 bg-gray-800 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-green-500"
       >
         {copied ? <Check size={16} /> : <Clipboard size={16} />}
       </button>
-      <div>{block.map(renderLine)}</div>
+      <div className="-mt-10">{block.map(renderLine)}</div>
     </div>
   );
 }
