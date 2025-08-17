@@ -4,21 +4,27 @@ import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useAutocomplete } from './useAutocomplete';
+import { useHistory } from './useHistory';
 
 export function useTerminal() {
   const [input, setInput] = useState('');
-  const [history, setHistory] = useState<string[]>([]);
+  const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [apiKey, setApiKey] = useState('');
   const [currentDir, setCurrentDir] = useState('');
   const endOfHistoryRef = useRef<HTMLDivElement>(null);
   const { suggestions, setSuggestions } = useAutocomplete(input, currentDir);
   const [activeSuggestion, setActiveSuggestion] = useState(0);
+  const {
+    addHistory,
+    getPreviousCommand,
+    getNextCommand,
+  } = useHistory();
 
   useEffect(() => {
     const storedKey = localStorage.getItem('gemini-api-key') ?? '';
     setApiKey(storedKey);
 
-    setHistory([
+    setCommandHistory([
       'Welcome to the Tauri + Next.js Terminal!',
       "Type 'help' for a list of commands.",
     ]);
@@ -34,15 +40,15 @@ export function useTerminal() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [history]);
+  }, [commandHistory]);
 
   useEffect(() => {
     const unlistenPromises = [
       listen<string>('terminal-output', (event) => {
-        setHistory((prev) => [...prev, event.payload]);
+        setCommandHistory((prev) => [...prev, event.payload]);
       }),
       listen<string>('terminal-terminated', (event) => {
-        setHistory((prev) => [...prev, event.payload]);
+        setCommandHistory((prev) => [...prev, event.payload]);
       }),
       listen<string>('directory-changed', (event) => {
         setCurrentDir(event.payload);
@@ -69,9 +75,9 @@ export function useTerminal() {
     if (!currentInput) return;
 
     if (currentInput === 'cls' || currentInput === 'clear') {
-      setHistory([]);
+      setCommandHistory([]);
     } else if (currentInput === 'help') {
-      setHistory((prev) => [
+      setCommandHistory((prev) => [
         ...prev,
         '$ help',
         'Available commands:',
@@ -81,23 +87,24 @@ export function useTerminal() {
         '  help         - Show this help message',
       ]);
     } else {
-      setHistory((prev) => [...prev, `$ ${currentInput}`]);
+      setCommandHistory((prev) => [...prev, `$ ${currentInput}`]);
+      addHistory(currentInput);
 
       if (currentInput.startsWith('ai:')) {
         const prompt = currentInput.substring(3).trim();
         invoke('ask_gemini', { apiKey, prompt })
           .then((response: unknown) => {
-            setHistory((prev) => [...prev, String(response)]);
+            setCommandHistory((prev) => [...prev, String(response)]);
           })
           .catch((error: unknown) => {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            setHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
+            setCommandHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
           });
       } else {
         const [command, ...args] = currentInput.split(/\s+/);
         invoke('execute_command', { command, args }).catch((error: unknown) => {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          setHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
+          setCommandHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
         });
       }
     }
@@ -107,38 +114,46 @@ export function useTerminal() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (suggestions.length > 0) {
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (suggestions.length > 0) {
         setActiveSuggestion((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1));
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault();
+      } else {
+        const previousCommand = getPreviousCommand();
+        if (previousCommand) setInput(previousCommand);
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (suggestions.length > 0) {
         setActiveSuggestion((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
-      } else if (e.key === 'Tab') {
-        e.preventDefault();
-        const selectedSuggestion = suggestions[activeSuggestion];
-        if (selectedSuggestion) {
-          const parts = input.split(' ');
-          parts[parts.length - 1] = selectedSuggestion;
-          setInput(parts.join(' ') + ' ');
-          setSuggestions([]);
-        }
+      } else {
+        const nextCommand = getNextCommand();
+        setInput(nextCommand);
+      }
+    } else if (e.key === 'Tab' && suggestions.length > 0) {
+      e.preventDefault();
+      const selectedSuggestion = suggestions[activeSuggestion];
+      if (selectedSuggestion) {
+        const parts = input.split(' ');
+        parts[parts.length - 1] = selectedSuggestion;
+        setInput(parts.join(' ') + ' ');
+        setSuggestions([]);
       }
     }
   };
 
   const analyzeLastError = () => {
-    const lastError = history.slice().reverse().find(line => line.includes('[ERROR]'));
+    const lastError = commandHistory.slice().reverse().find(line => line.includes('[ERROR]'));
     if (lastError) {
       const prompt = `Analyze this terminal error and suggest a solution: ${lastError}`;
-      setHistory(prev => [...prev, `$ ai: analyze error`]);
+      setCommandHistory(prev => [...prev, `$ ai: analyze error`]);
       invoke('ask_gemini', { apiKey, prompt })
         .then((response: unknown) => {
-          setHistory((prev) => [...prev, String(response)]);
+          setCommandHistory((prev) => [...prev, String(response)]);
         })
         .catch((error: unknown) => {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          setHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
+          setCommandHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
         });
     }
   };
@@ -153,7 +168,7 @@ export function useTerminal() {
 
   return {
     input,
-    history,
+    commandHistory,
     currentDir,
     suggestions,
     activeSuggestion,

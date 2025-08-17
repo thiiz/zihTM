@@ -9,7 +9,7 @@ import { useTerminal } from '@/hooks/useTerminal';
 export default function HomePage() {
   const {
     input,
-    history,
+    commandHistory,
     currentDir,
     suggestions,
     activeSuggestion,
@@ -24,11 +24,11 @@ export default function HomePage() {
   return (
     <div className="fixed bottom-0 left-0 w-full h-[400px] flex flex-col text-white font-mono">
       <TerminalHeader
-        history={history}
+        history={commandHistory}
         onAnalyzeLastError={analyzeLastError}
         currentDir={currentDir}
       />
-      <TerminalHistory history={history} endOfHistoryRef={endOfHistoryRef} />
+      <TerminalHistory history={commandHistory} endOfHistoryRef={endOfHistoryRef} />
       <TerminalInput
         input={input}
         suggestions={suggestions}
