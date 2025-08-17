@@ -6,7 +6,7 @@ use tokio::process::Command;
 use std::process::Stdio;
 use std::env;
 use std::fs;
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+use tauri_plugin_global_shortcut::{ShortcutState};
 
 #[tauri::command]
 fn get_current_dir() -> Result<String, String> {
@@ -186,12 +186,12 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
       if let Some(monitor) = window.current_monitor()? {
         let monitor_size = monitor.size();
         let window_height = 400.0;
-        let window_width_percentage = 0.9; // 90% of screen width
+        let window_width_percentage = 0.99; // 90% of screen width
         let window_width = (monitor_size.width as f64 * window_width_percentage) as u32;
         let x_position = 0;
 
         window.set_size(tauri::PhysicalSize::new(window_width, window_height as u32))?;
-        window.set_position(tauri::PhysicalPosition::new(x_position, (monitor_size.height - window_height as u32) as i32))?;
+        window.set_position(tauri::PhysicalPosition::new(x_position, (monitor_size.height - window_height as u32 - 40) as i32))?;
       }
 
       #[cfg(target_os = "macos")]
@@ -207,16 +207,15 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     .plugin(tauri_plugin_opener::init())
     .plugin(
         tauri_plugin_global_shortcut::Builder::new()
-            .with_shortcut("Shift+CmdOrCtrl+T")?
             .with_shortcut("alt+space")?
-            .with_handler(|app, shortcut, event| {
+            .with_handler(|app, _shortcut, event| {
                 if event.state == ShortcutState::Pressed {
                     if let Some(window) = app.get_webview_window("main") {
                         let is_minimized = window.is_minimized().unwrap_or(false);
                         let is_visible = window.is_visible().unwrap_or(false);
 
                         if is_visible && !is_minimized {
-                            let _ = window.hide();
+                            let _ = window.minimize();
                         } else {
                             if is_minimized {
                                 let _ = window.unminimize();
