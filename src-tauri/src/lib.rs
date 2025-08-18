@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager, State};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use window_vibrancy::{self};
-use tokio::process::{Child, Command};
+use tokio::process::{Command};
 use std::process::Stdio;
 use std::env;
 use std::fs;
@@ -10,9 +10,10 @@ use tauri_plugin_global_shortcut::{ShortcutState};
 use tokio::sync::Mutex;
 use std::collections::HashMap;
 use serde_json::Value;
+use std::sync::Arc;
 
 struct AppState {
-    child_process: Mutex<Option<Child>>,
+    child_pid: Arc<Mutex<Option<u32>>>,
 }
 
 #[tauri::command]
@@ -145,6 +146,9 @@ async fn execute_command(
             let new_path = env::current_dir().unwrap().to_string_lossy().to_string();
             window.emit("directory-changed", Some(new_path)).unwrap();
         }
+        window
+            .emit("terminal-terminated", Some("".to_string()))
+            .unwrap();
         return Ok(());
     }
 
@@ -191,17 +195,42 @@ async fn execute_command(
         }
     });
 
-    *state.child_process.lock().await = Some(child);
+    let pid = child.id().ok_or("Failed to get process ID")?;
+    *state.child_pid.lock().await = Some(pid);
+
+    let child_pid_handle = state.child_pid.clone();
+    let window_clone = window.clone();
+    tokio::spawn(async move {
+        let status = child.wait().await;
+        match status {
+            Ok(exit_status) => {
+                if !exit_status.success() {
+                    window_clone
+                        .emit(
+                            "terminal-terminated",
+                            Some(format!("Process exited with status: {}", exit_status)),
+                        )
+                        .unwrap();
+                } else {
+                    window_clone
+                        .emit("terminal-terminated", Some("".to_string()))
+                        .unwrap();
+                }
+            }
+            Err(e) => {
+                window_clone.emit("terminal-terminated", Some(format!("[ERROR] Process failed: {}", e))).unwrap();
+            }
+        }
+        *child_pid_handle.lock().await = None;
+    });
 
     Ok(())
 }
 
 #[tauri::command]
 async fn kill_process(state: State<'_, AppState>) -> Result<(), String> {
-    let mut child_opt = state.child_process.lock().await;
-    if let Some(child) = child_opt.take() {
-        let pid = child.id().ok_or("Failed to get process ID")?;
-
+    let mut pid_opt = state.child_pid.lock().await;
+    if let Some(pid) = pid_opt.take() {
         #[cfg(windows)]
         {
             let status = Command::new("taskkill")
@@ -235,7 +264,7 @@ async fn kill_process(state: State<'_, AppState>) -> Result<(), String> {
                 }
             }
         }
-        *child_opt = None;
+        *pid_opt = None;
         Ok(())
     } else {
         Err("No process to kill".to_string())
@@ -288,7 +317,7 @@ fn get_package_json_scripts() -> Result<HashMap<String, String>, String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let app_state = AppState {
-        child_process: Mutex::new(None),
+        child_pid: Arc::new(Mutex::new(None)),
     };
 
     tauri::Builder::default()

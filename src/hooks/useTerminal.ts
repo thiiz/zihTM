@@ -11,10 +11,17 @@ export function useTerminal() {
   const [outputHistory, setOutputHistory] = useState<string[]>([]);
   const [apiKey, setApiKey] = useState('');
   const [currentDir, setCurrentDir] = useState('');
+  const [isProcessRunning, setIsProcessRunning] = useState(false);
   const endOfHistoryRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const prevIsProcessRunningRef = useRef(false);
   const { history: commandHistory, addCommandToHistory, historyIndex, setHistoryIndex } = useCommandHistory();
   const { suggestions, setSuggestions } = useAutocomplete(input, currentDir, commandHistory);
   const [activeSuggestion, setActiveSuggestion] = useState(0);
+
+  const focusInput = () => {
+    inputRef.current?.focus();
+  };
 
   useEffect(() => {
     const storedKey = localStorage.getItem('gemini-api-key') ?? '';
@@ -39,15 +46,26 @@ export function useTerminal() {
   }, [outputHistory]);
 
   useEffect(() => {
+    if (prevIsProcessRunningRef.current && !isProcessRunning) {
+      focusInput();
+    }
+    prevIsProcessRunningRef.current = isProcessRunning;
+  }, [isProcessRunning]);
+
+  useEffect(() => {
     const unlistenPromises = [
       listen<string>('terminal-output', (event) => {
         setOutputHistory((prev) => [...prev, event.payload]);
       }),
       listen<string>('terminal-terminated', (event) => {
-        setOutputHistory((prev) => [...prev, event.payload]);
+        if (event.payload) {
+          setOutputHistory((prev) => [...prev, event.payload]);
+        }
+        setIsProcessRunning(false);
       }),
       listen<string>('directory-changed', (event) => {
         setCurrentDir(event.payload);
+        focusInput();
       }),
     ];
 
@@ -167,10 +185,12 @@ export function useTerminal() {
     invoke('kill_process')
       .then(() => {
         setOutputHistory((prev) => [...prev, 'Process terminated.']);
+        setIsProcessRunning(false);
       })
       .catch((error) => {
         const errorMessage = error instanceof Error ? error.message : String(error);
         setOutputHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
+        setIsProcessRunning(false);
       });
   };
 
@@ -186,9 +206,13 @@ export function useTerminal() {
     setOutputHistory((prev) => [...prev, `$ ${commandStr}`]);
     addCommandToHistory(commandStr);
     const [command, ...args] = commandStr.split(/\s+/);
+
+    setIsProcessRunning(true);
+
     invoke('execute_command', { command, args }).catch((error: unknown) => {
       const errorMessage = error instanceof Error ? error.message : String(error);
       setOutputHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
+      setIsProcessRunning(false);
     });
   };
 
@@ -199,6 +223,7 @@ export function useTerminal() {
     suggestions,
     activeSuggestion,
     endOfHistoryRef,
+    inputRef,
     handleInputChange,
     handleFormSubmit,
     handleKeyDown,
@@ -206,5 +231,7 @@ export function useTerminal() {
     handleSuggestionClick,
     killProcess,
     executeCommand,
+    isProcessRunning,
+    focusInput,
   };
 }

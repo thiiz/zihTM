@@ -6,6 +6,7 @@ import { Clipboard, Check } from 'lucide-react';
 interface TerminalHistoryProps {
   history: string[];
   endOfHistoryRef: RefObject<HTMLDivElement | null>;
+  onTerminalClick: () => void;
 }
 
 function TerminalBlock({ block }: { block: string[] }) {
@@ -13,9 +14,11 @@ function TerminalBlock({ block }: { block: string[] }) {
 
   const handleCopy = () => {
     const blockText = block.join('\n');
-    navigator.clipboard.writeText(blockText);
+    void navigator.clipboard.writeText(blockText);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => {
+      setCopied(false);
+    }, 2000);
   };
 
   const renderLine = (line: string, index: number) => {
@@ -57,7 +60,11 @@ function TerminalBlock({ block }: { block: string[] }) {
   );
 }
 
-export function TerminalHistory({ history, endOfHistoryRef }: TerminalHistoryProps) {
+export function TerminalHistory({
+  history,
+  endOfHistoryRef,
+  onTerminalClick,
+}: TerminalHistoryProps) {
   const commandBlocks = useMemo(() => {
     const blocks: string[][] = [];
     let currentBlock: string[] = [];
@@ -78,7 +85,7 @@ export function TerminalHistory({ history, endOfHistoryRef }: TerminalHistoryPro
   }, [history]);
 
   return (
-    <main className="flex-1 overflow-y-auto">
+    <main className="flex-1 overflow-y-auto" onClick={onTerminalClick}>
       <div className="h-full">
         {commandBlocks.map((block, index) => (
           <TerminalBlock key={index} block={block} />
