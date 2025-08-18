@@ -83,11 +83,11 @@ export function useTerminal() {
         '  help         - Show this help message',
       ]);
     } else {
-      setOutputHistory((prev) => [...prev, `$ ${currentInput}`]);
       addCommandToHistory(currentInput);
 
       if (currentInput.startsWith('ai:')) {
         const prompt = currentInput.substring(3).trim();
+        setOutputHistory((prev) => [...prev, `$ ${currentInput}`]);
         invoke('ask_gemini', { apiKey, prompt })
           .then((response: unknown) => {
             setOutputHistory((prev) => [...prev, String(response)]);
@@ -97,11 +97,7 @@ export function useTerminal() {
             setOutputHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
           });
       } else {
-        const [command, ...args] = currentInput.split(/\s+/);
-        invoke('execute_command', { command, args }).catch((error: unknown) => {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          setOutputHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
-        });
+        executeCommand(currentInput);
       }
     }
 
@@ -178,7 +174,15 @@ export function useTerminal() {
       });
   };
 
-  const executeCommand = (commandStr: string) => {
+  const executeCommand = async (commandStr: string) => {
+    try {
+      await invoke('kill_process');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage !== 'No process to kill') {
+        setOutputHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
+      }
+    }
     setOutputHistory((prev) => [...prev, `$ ${commandStr}`]);
     addCommandToHistory(commandStr);
     const [command, ...args] = commandStr.split(/\s+/);

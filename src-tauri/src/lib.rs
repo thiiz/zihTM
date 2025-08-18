@@ -199,14 +199,44 @@ async fn execute_command(
 #[tauri::command]
 async fn kill_process(state: State<'_, AppState>) -> Result<(), String> {
     let mut child_opt = state.child_process.lock().await;
-    if let Some(mut child) = child_opt.take() {
-        match child.kill().await {
-            Ok(_) => {
-                *child_opt = None;
-                Ok(())
+    if let Some(child) = child_opt.take() {
+        let pid = child.id().ok_or("Failed to get process ID")?;
+
+        #[cfg(windows)]
+        {
+            let status = Command::new("taskkill")
+                .args(&["/PID", &pid.to_string(), "/T", "/F"])
+                .status()
+                .await
+                .map_err(|e| e.to_string())?;
+            if !status.success() {
+                return Err("Failed to kill process tree".to_string());
             }
-            Err(e) => Err(e.to_string()),
         }
+
+        #[cfg(not(windows))]
+        {
+            let status = Command::new("pkill")
+                .arg("-P")
+                .arg(pid.to_string())
+                .status()
+                .await
+                .map_err(|e| e.to_string())?;
+            if !status.success() {
+                // Fallback to kill if pkill is not available or fails
+                let fallback_status = Command::new("kill")
+                    .arg("-9")
+                    .arg(pid.to_string())
+                    .status()
+                    .await
+                    .map_err(|e| e.to_string())?;
+                if !fallback_status.success() {
+                    return Err("Failed to kill process".to_string());
+                }
+            }
+        }
+        *child_opt = None;
+        Ok(())
     } else {
         Err("No process to kill".to_string())
     }
