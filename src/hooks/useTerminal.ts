@@ -205,13 +205,8 @@ export function useTerminal() {
     }
     setOutputHistory((prev) => [...prev, `$ ${commandStr}`]);
     addCommandToHistory(commandStr);
-    const parts = commandStr.split(/\s+/);
-    const command = parts[0];
-    const args = parts.slice(1);
-
     setIsProcessRunning(true);
-
-    invoke('execute_command', { command, args }).catch((error: unknown) => {
+    invoke('execute_command', { command: commandStr }).catch((error: unknown) => {
       const errorMessage = error instanceof Error ? error.message : String(error);
       setOutputHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
       setIsProcessRunning(false);

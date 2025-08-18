@@ -148,25 +148,22 @@ async fn ask_gemini(api_key: String, prompt: String) -> Result<String, String> {
 async fn execute_command(
     window: tauri::Window,
     command: String,
-    args: Vec<String>,
     app_state: State<'_, AppState>,
     dir_state: State<'_, DirectoryState>,
 ) -> Result<(), String> {
-    let path = dir_state.path.lock().await;
-    let full_command = format!("{} {}", command, args.join(" "));
+    let mut path = dir_state.path.lock().await;
 
-    if full_command.starts_with("cd ") {
-        let new_dir_str = full_command.trim_start_matches("cd ").trim();
+    // Check if the command is 'cd' and handle it
+    if command.starts_with("cd ") {
+        let new_dir_str = command.trim_start_matches("cd ").trim();
         let new_dir = path.join(new_dir_str);
 
         if new_dir.is_dir() {
-            let mut path_unlocked = dir_state.path.lock().await;
-            *path_unlocked = dunce::canonicalize(new_dir).map_err(|e| e.to_string())?;
-            window.emit("directory-changed", Some(path_unlocked.to_string_lossy().to_string())).unwrap();
+            *path = dunce::canonicalize(new_dir).map_err(|e| e.to_string())?;
+            window.emit("directory-changed", Some(path.to_string_lossy().to_string())).unwrap();
         } else {
             window.emit("terminal-output", Some(format!("[ERROR] Directory not found: {}", new_dir_str))).unwrap();
         }
-
         window.emit("terminal-terminated", Some("".to_string())).unwrap();
         return Ok(());
     }
@@ -176,7 +173,8 @@ async fn execute_command(
     let nu_path = std::path::PathBuf::from("bin/windows/nu.exe");
 
     let child_process = Command::new(nu_path)
-        .args(&["-c", &full_command])
+        .arg("-c")
+        .arg(&command)
         .current_dir(&*path)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -186,7 +184,7 @@ async fn execute_command(
     #[cfg(not(windows))]
     let child_process = Command::new("sh")
         .arg("-c")
-        .arg(&full_command)
+        .arg(&command)
         .current_dir(&*path)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
