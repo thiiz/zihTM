@@ -11,16 +11,20 @@ use tokio::sync::Mutex;
 use std::collections::HashMap;
 use serde_json::Value;
 use std::sync::Arc;
+use std::path::PathBuf;
 
 struct AppState {
     child_pid: Arc<Mutex<Option<u32>>>,
 }
 
+struct DirectoryState {
+    path: Arc<Mutex<PathBuf>>,
+}
+
 #[tauri::command]
-fn get_current_dir() -> Result<String, String> {
-    env::current_dir()
-        .map(|path| path.to_string_lossy().to_string())
-        .map_err(|e| e.to_string())
+fn get_current_dir(state: State<'_, DirectoryState>) -> Result<String, String> {
+    let path = state.path.blocking_lock();
+    Ok(path.to_string_lossy().to_string())
 }
 
 #[tauri::command]
@@ -145,31 +149,37 @@ async fn execute_command(
     window: tauri::Window,
     command: String,
     args: Vec<String>,
-    state: State<'_, AppState>,
+    app_state: State<'_, AppState>,
+    dir_state: State<'_, DirectoryState>,
 ) -> Result<(), String> {
+    let mut path = dir_state.path.lock().await;
+
     if command == "cd" {
-        let new_dir = args.get(0).map_or("..", |s| s.as_str());
-        if let Err(e) = env::set_current_dir(new_dir) {
-            window.emit("terminal-output", Some(format!("[ERROR] Failed to change directory: {}", e))).unwrap();
+        let new_dir_str = args.get(0).map_or("..", |s| s.as_str());
+        let new_dir = path.join(new_dir_str);
+
+        if new_dir.is_dir() {
+            *path = dunce::canonicalize(new_dir).map_err(|e| e.to_string())?;
+            window.emit("directory-changed", Some(path.to_string_lossy().to_string())).unwrap();
         } else {
-            let new_path = env::current_dir().unwrap().to_string_lossy().to_string();
-            window.emit("directory-changed", Some(new_path)).unwrap();
+            window.emit("terminal-output", Some(format!("[ERROR] Directory not found: {}", new_dir_str))).unwrap();
         }
-        window
-            .emit("terminal-terminated", Some("".to_string()))
-            .unwrap();
+
+        window.emit("terminal-terminated", Some("".to_string())).unwrap();
         return Ok(());
     }
-
-    let full_command = format!("{} {}", command, args.join(" "));
-    let current_dir = env::current_dir().map_err(|e| e.to_string())?;
-
     #[cfg(windows)]
-    let child_process = Command::new("cmd")
-        .args(&["/C", &full_command])
-        .current_dir(&current_dir)
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    let full_command = format!("{} {}", command, args.join(" "));
+    let nu_path = std::path::PathBuf::from("bin/windows/nu.exe");
+
+    let child_process = Command::new(nu_path)
+        .args(&["-c", &full_command])
+        .current_dir(&*path)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
+        .creation_flags(CREATE_NO_WINDOW)
         .spawn();
 
     #[cfg(not(windows))]
@@ -205,9 +215,9 @@ async fn execute_command(
     });
 
     let pid = child.id().ok_or("Failed to get process ID")?;
-    *state.child_pid.lock().await = Some(pid);
+    *app_state.child_pid.lock().await = Some(pid);
 
-    let child_pid_handle = state.child_pid.clone();
+    let child_pid_handle = app_state.child_pid.clone();
     let window_clone = window.clone();
     tokio::spawn(async move {
         let status = child.wait().await;
@@ -237,8 +247,8 @@ async fn execute_command(
 }
 
 #[tauri::command]
-async fn kill_process(state: State<'_, AppState>) -> Result<(), String> {
-    let mut pid_opt = state.child_pid.lock().await;
+async fn kill_process(app_state: State<'_, AppState>) -> Result<(), String> {
+    let mut pid_opt = app_state.child_pid.lock().await;
     if let Some(pid) = pid_opt.take() {
         #[cfg(windows)]
         {
@@ -281,8 +291,8 @@ async fn kill_process(state: State<'_, AppState>) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn detect_package_manager() -> Result<String, String> {
-    let current_dir = env::current_dir().map_err(|e| e.to_string())?;
+fn detect_package_manager(state: State<'_, DirectoryState>) -> Result<String, String> {
+    let current_dir = state.path.blocking_lock();
     if current_dir.join("bun.lockb").exists() {
         Ok("bun".to_string())
     } else if current_dir.join("pnpm-lock.yaml").exists() {
@@ -297,8 +307,8 @@ fn detect_package_manager() -> Result<String, String> {
 }
 
 #[tauri::command]
-fn get_package_json_scripts() -> Result<HashMap<String, String>, String> {
-    let current_dir = env::current_dir().map_err(|e| e.to_string())?;
+fn get_package_json_scripts(state: State<'_, DirectoryState>) -> Result<HashMap<String, String>, String> {
+    let current_dir = state.path.blocking_lock();
     let package_json_path = current_dir.join("package.json");
 
     if !package_json_path.exists() {
@@ -328,9 +338,13 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let app_state = AppState {
         child_pid: Arc::new(Mutex::new(None)),
     };
+    let dir_state = DirectoryState {
+        path: Arc::new(Mutex::new(env::current_dir().unwrap())),
+    };
 
     tauri::Builder::default()
         .manage(app_state)
+        .manage(dir_state)
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
             if let Some(monitor) = window.current_monitor()? {

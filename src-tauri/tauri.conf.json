@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "tauri-nextjs-template",
+  "productName": "ZihTM",
   "version": "0.1.0",
-  "identifier": "com.tauri.nextjs.template",
+  "identifier": "com.zihtm.app",
   "build": {
     "beforeDevCommand": "bun dev",
     "devUrl": "http://localhost:3000",
@@ -13,10 +13,10 @@
     "windows": [
       {
         "label": "main",
-        "title": "tauri-nextjs-template",
+        "title": "ZihTM",
         "width": 800,
         "height": 400,
-        "resizable": true,
+        "resizable": false,
         "fullscreen": false,
         "decorations": false,
         "transparent": true
@@ -35,6 +35,9 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
+    ],
+    "resources": [
+      "bin/windows/nu.exe"
     ]
   }
 }

@@ -14,10 +14,10 @@ const ProjectScripts: React.FC<ProjectScriptsProps> = ({ executeCommand, current
   useEffect(() => {
     const fetchProjectInfo = async () => {
       try {
-        const manager = await invoke<string>('detect_package_manager');
+        const manager = await invoke<string>('detect_package_manager', { state: currentDir });
         setPackageManager(manager);
 
-        const fetchedScripts = await invoke<Record<string, string>>('get_package_json_scripts');
+        const fetchedScripts = await invoke<Record<string, string>>('get_package_json_scripts', { state: currentDir });
         setScripts(fetchedScripts);
       } catch (error) {
         console.error('Error fetching project info:', error);
