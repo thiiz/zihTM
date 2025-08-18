@@ -55,14 +55,16 @@ export const TerminalInput = forwardRef<HTMLInputElement, TerminalInputProps>(
               </div>
             )}
           </div>
-          <button
-            type="button"
-            onClick={onKillProcess}
-            className="ml-2 px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
-            title="Kill Process (Ctrl+C)"
-          >
-            Kill
-          </button>
+          {isProcessRunning && (
+            <button
+              type="button"
+              onClick={onKillProcess}
+              className="ml-2 px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
+              title="Kill Process (Ctrl+C)"
+            >
+              Kill
+            </button>
+          )}
         </form>
         {suggestions.length > 0 && (
           <div className="absolute bottom-full left-0 w-full bg-black/90 border border-gray-800 rounded-md mb-1">
