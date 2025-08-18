@@ -4,27 +4,23 @@ import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useAutocomplete } from './useAutocomplete';
-import { useHistory } from './useHistory';
+import { useCommandHistory } from './useCommandHistory';
 
 export function useTerminal() {
   const [input, setInput] = useState('');
-  const [commandHistory, setCommandHistory] = useState<string[]>([]);
+  const [outputHistory, setOutputHistory] = useState<string[]>([]);
   const [apiKey, setApiKey] = useState('');
   const [currentDir, setCurrentDir] = useState('');
   const endOfHistoryRef = useRef<HTMLDivElement>(null);
-  const { suggestions, setSuggestions } = useAutocomplete(input, currentDir);
+  const { history: commandHistory, addCommandToHistory, historyIndex, setHistoryIndex } = useCommandHistory();
+  const { suggestions, setSuggestions } = useAutocomplete(input, currentDir, commandHistory);
   const [activeSuggestion, setActiveSuggestion] = useState(0);
-  const {
-    addHistory,
-    getPreviousCommand,
-    getNextCommand,
-  } = useHistory();
 
   useEffect(() => {
     const storedKey = localStorage.getItem('gemini-api-key') ?? '';
     setApiKey(storedKey);
 
-    setCommandHistory([
+    setOutputHistory([
       'Welcome to the Tauri + Next.js Terminal!',
       "Type 'help' for a list of commands.",
     ]);
@@ -40,15 +36,15 @@ export function useTerminal() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [commandHistory]);
+  }, [outputHistory]);
 
   useEffect(() => {
     const unlistenPromises = [
       listen<string>('terminal-output', (event) => {
-        setCommandHistory((prev) => [...prev, event.payload]);
+        setOutputHistory((prev) => [...prev, event.payload]);
       }),
       listen<string>('terminal-terminated', (event) => {
-        setCommandHistory((prev) => [...prev, event.payload]);
+        setOutputHistory((prev) => [...prev, event.payload]);
       }),
       listen<string>('directory-changed', (event) => {
         setCurrentDir(event.payload);
@@ -75,9 +71,9 @@ export function useTerminal() {
     if (!currentInput) return;
 
     if (currentInput === 'cls' || currentInput === 'clear') {
-      setCommandHistory([]);
+      setOutputHistory([]);
     } else if (currentInput === 'help') {
-      setCommandHistory((prev) => [
+      setOutputHistory((prev) => [
         ...prev,
         '$ help',
         'Available commands:',
@@ -87,24 +83,24 @@ export function useTerminal() {
         '  help         - Show this help message',
       ]);
     } else {
-      setCommandHistory((prev) => [...prev, `$ ${currentInput}`]);
-      addHistory(currentInput);
+      setOutputHistory((prev) => [...prev, `$ ${currentInput}`]);
+      addCommandToHistory(currentInput);
 
       if (currentInput.startsWith('ai:')) {
         const prompt = currentInput.substring(3).trim();
         invoke('ask_gemini', { apiKey, prompt })
           .then((response: unknown) => {
-            setCommandHistory((prev) => [...prev, String(response)]);
+            setOutputHistory((prev) => [...prev, String(response)]);
           })
           .catch((error: unknown) => {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            setCommandHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
+            setOutputHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
           });
       } else {
         const [command, ...args] = currentInput.split(/\s+/);
         invoke('execute_command', { command, args }).catch((error: unknown) => {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          setCommandHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
+          setOutputHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
         });
       }
     }
@@ -118,42 +114,48 @@ export function useTerminal() {
       e.preventDefault();
       if (suggestions.length > 0) {
         setActiveSuggestion((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1));
-      } else {
-        const previousCommand = getPreviousCommand();
-        if (previousCommand) setInput(previousCommand);
+      } else if (historyIndex < commandHistory.length - 1) {
+        const newIndex = historyIndex + 1;
+        setHistoryIndex(newIndex);
+        setInput(commandHistory[newIndex]);
       }
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       if (suggestions.length > 0) {
         setActiveSuggestion((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
+      } else if (historyIndex > 0) {
+        const newIndex = historyIndex - 1;
+        setHistoryIndex(newIndex);
+        setInput(commandHistory[newIndex]);
       } else {
-        const nextCommand = getNextCommand();
-        setInput(nextCommand);
+        setHistoryIndex(-1);
+        setInput('');
       }
     } else if (e.key === 'Tab' && suggestions.length > 0) {
       e.preventDefault();
+      setActiveSuggestion((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
+    } else if (e.key === 'ArrowRight' && suggestions.length > 0 && input) {
+      e.preventDefault();
       const selectedSuggestion = suggestions[activeSuggestion];
       if (selectedSuggestion) {
-        const parts = input.split(' ');
-        parts[parts.length - 1] = selectedSuggestion;
-        setInput(parts.join(' ') + ' ');
+        setInput(selectedSuggestion);
         setSuggestions([]);
       }
     }
   };
 
   const analyzeLastError = () => {
-    const lastError = commandHistory.slice().reverse().find(line => line.includes('[ERROR]'));
+    const lastError = outputHistory.slice().reverse().find(line => line.includes('[ERROR]'));
     if (lastError) {
       const prompt = `Analyze this terminal error and suggest a solution: ${lastError}`;
-      setCommandHistory(prev => [...prev, `$ ai: analyze error`]);
+      setOutputHistory(prev => [...prev, `$ ai: analyze error`]);
       invoke('ask_gemini', { apiKey, prompt })
         .then((response: unknown) => {
-          setCommandHistory((prev) => [...prev, String(response)]);
+          setOutputHistory((prev) => [...prev, String(response)]);
         })
         .catch((error: unknown) => {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          setCommandHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
+          setOutputHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
         });
     }
   };
@@ -165,10 +167,21 @@ export function useTerminal() {
     setSuggestions([]);
   };
 
+  const killProcess = () => {
+    invoke('kill_process')
+      .then(() => {
+        setOutputHistory((prev) => [...prev, 'Process terminated.']);
+      })
+      .catch((error) => {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        setOutputHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
+      });
+  };
+
 
   return {
     input,
-    commandHistory,
+    commandHistory: outputHistory,
     currentDir,
     suggestions,
     activeSuggestion,
@@ -178,5 +191,6 @@ export function useTerminal() {
     handleKeyDown,
     analyzeLastError,
     handleSuggestionClick,
+    killProcess,
   };
 }

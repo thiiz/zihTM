@@ -1,12 +1,17 @@
 use serde::{Deserialize, Serialize};
-use tauri::{Emitter, Manager};
+use tauri::{Emitter, Manager, State};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use window_vibrancy::{self};
-use tokio::process::Command;
+use tokio::process::{Child, Command};
 use std::process::Stdio;
 use std::env;
 use std::fs;
 use tauri_plugin_global_shortcut::{ShortcutState};
+use tokio::sync::Mutex;
+
+struct AppState {
+    child_process: Mutex<Option<Child>>,
+}
 
 #[tauri::command]
 fn get_current_dir() -> Result<String, String> {
@@ -128,6 +133,7 @@ async fn execute_command(
     window: tauri::Window,
     command: String,
     args: Vec<String>,
+    state: State<'_, AppState>,
 ) -> Result<(), String> {
     if command == "cd" {
         let new_dir = args.get(0).map_or("..", |s| s.as_str());
@@ -141,27 +147,26 @@ async fn execute_command(
     }
 
     let full_command = format!("{} {}", command, args.join(" "));
-
     let current_dir = env::current_dir().map_err(|e| e.to_string())?;
 
     #[cfg(windows)]
-    let mut child = Command::new("cmd")
+    let child_process = Command::new("cmd")
         .args(&["/C", &full_command])
         .current_dir(&current_dir)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| format!("Failed to spawn command: {}", e))?;
+        .spawn();
 
     #[cfg(not(windows))]
-    let mut child = Command::new("sh")
+    let child_process = Command::new("sh")
         .arg("-c")
         .arg(&full_command)
         .current_dir(&current_dir)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| format!("Failed to spawn command: {}", e))?;
+        .spawn();
+
+    let mut child = child_process.map_err(|e| format!("Failed to spawn command: {}", e))?;
 
     let stdout = child.stdout.take().expect("Failed to capture stdout");
     let stderr = child.stderr.take().expect("Failed to capture stderr");
@@ -184,72 +189,94 @@ async fn execute_command(
         }
     });
 
-    tokio::spawn(async move {
-        let status = child.wait().await.expect("Child process encountered an error");
-        let exit_code = status.code().unwrap_or(1);
-        let message = if exit_code == 0 {
-            "Process exited with code: 0"
-        } else {
-            "Process exited with code: 1"
-        };
-        window.emit("terminal-terminated", Some(message)).unwrap();
-    });
+    *state.child_process.lock().await = Some(child);
 
     Ok(())
+}
+
+#[tauri::command]
+async fn kill_process(state: State<'_, AppState>) -> Result<(), String> {
+    let mut child_opt = state.child_process.lock().await;
+    if let Some(mut child) = child_opt.take() {
+        match child.kill().await {
+            Ok(_) => {
+                *child_opt = None;
+                Ok(())
+            }
+            Err(e) => Err(e.to_string()),
+        }
+    } else {
+        Err("No process to kill".to_string())
+    }
 }
 
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
-  tauri::Builder::default()
-    .setup(|app| {
-      let window = app.get_webview_window("main").unwrap();
-      if let Some(monitor) = window.current_monitor()? {
-        let monitor_size = monitor.size();
-        let window_height = 400.0;
-        let window_width_percentage = 0.99; // 90% of screen width
-        let window_width = (monitor_size.width as f64 * window_width_percentage) as u32;
-        let x_position = 0;
+    let app_state = AppState {
+        child_process: Mutex::new(None),
+    };
 
-        window.set_size(tauri::PhysicalSize::new(window_width, window_height as u32))?;
-        window.set_position(tauri::PhysicalPosition::new(x_position, (monitor_size.height - window_height as u32 - 40) as i32))?;
-      }
+    tauri::Builder::default()
+        .manage(app_state)
+        .setup(|app| {
+            let window = app.get_webview_window("main").unwrap();
+            if let Some(monitor) = window.current_monitor()? {
+                let monitor_size = monitor.size();
+                let window_height = 400.0;
+                let window_width_percentage = 0.99;
+                let window_width = (monitor_size.width as f64 * window_width_percentage) as u32;
+                let x_position = 0;
 
-      #[cfg(target_os = "macos")]
-      window_vibrancy::apply_vibrancy(&window, NSVisualEffectMaterial::HudWindow, None, None)
-        .expect("Unsupported platform! 'apply_vibrancy' is only supported on macOS");
+                window.set_size(tauri::PhysicalSize::new(window_width, window_height as u32))?;
+                window.set_position(tauri::PhysicalPosition::new(
+                    x_position,
+                    (monitor_size.height - window_height as u32 - 40) as i32,
+                ))?;
+            }
 
-      #[cfg(target_os = "windows")]
-      window_vibrancy::apply_blur(&window, Some((18, 18, 18, 125)))
-        .expect("Unsupported platform! 'apply_blur' is only supported on Windows");
+            #[cfg(target_os = "macos")]
+            window_vibrancy::apply_vibrancy(&window, NSVisualEffectMaterial::HudWindow, None, None)
+                .expect("Unsupported platform! 'apply_vibrancy' is only supported on macOS");
 
-      Ok(())
-    })
-    .plugin(tauri_plugin_opener::init())
-    .plugin(
-        tauri_plugin_global_shortcut::Builder::new()
-            .with_shortcut("alt+space")?
-            .with_handler(|app, _shortcut, event| {
-                if event.state == ShortcutState::Pressed {
-                    if let Some(window) = app.get_webview_window("main") {
-                        let is_minimized = window.is_minimized().unwrap_or(false);
-                        let is_visible = window.is_visible().unwrap_or(false);
+            #[cfg(target_os = "windows")]
+            window_vibrancy::apply_blur(&window, Some((18, 18, 18, 125)))
+                .expect("Unsupported platform! 'apply_blur' is only supported on Windows");
 
-                        if is_visible && !is_minimized {
-                            let _ = window.minimize();
-                        } else {
-                            if is_minimized {
-                                let _ = window.unminimize();
+            Ok(())
+        })
+        .plugin(tauri_plugin_opener::init())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_shortcut("alt+space")?
+                .with_handler(|app, _shortcut, event| {
+                    if event.state == ShortcutState::Pressed {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let is_minimized = window.is_minimized().unwrap_or(false);
+                            let is_visible = window.is_visible().unwrap_or(false);
+
+                            if is_visible && !is_minimized {
+                                let _ = window.minimize();
+                            } else {
+                                if is_minimized {
+                                    let _ = window.unminimize();
+                                }
+                                let _ = window.show();
+                                let _ = window.set_focus();
                             }
-                            let _ = window.show();
-                            let _ = window.set_focus();
                         }
                     }
-                }
-            })
-            .build(),
-    )
-    .invoke_handler(tauri::generate_handler![ask_gemini, execute_command, get_current_dir, list_dir_contents, get_path_suggestions])
-    .run(tauri::generate_context!())?;
-  Ok(())
+                })
+                .build(),
+        )
+        .invoke_handler(tauri::generate_handler![
+            ask_gemini,
+            execute_command,
+            get_current_dir,
+            list_dir_contents,
+            get_path_suggestions,
+            kill_process
+        ])
+        .run(tauri::generate_context!())?;
+    Ok(())
 }

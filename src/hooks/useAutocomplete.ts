@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 
 const FREQUENT_COMMANDS = ['git', 'ls', 'cd', 'clear', 'cls', 'npm', 'pnpm', 'yarn', 'bun', 'code', 'vim', 'nvim', 'nano', 'cat', 'rm', 'mkdir'];
+const BUN_COMMANDS = ['run dev', 'run build', 'run start', 'install', 'add', 'remove'];
 
-export function useAutocomplete(inputValue: string, currentDir: string) {
+export function useAutocomplete(inputValue: string, currentDir: string, commandHistory: string[]) {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [systemCommands, setSystemCommands] = useState<string[]>([]);
 
@@ -36,15 +37,19 @@ export function useAutocomplete(inputValue: string, currentDir: string) {
         if (inputValue.endsWith(' ')) {
           setSuggestions([]);
         } else {
-          const allCommands = [...new Set([...FREQUENT_COMMANDS, ...systemCommands])];
+          const allCommands = [...new Set([...FREQUENT_COMMANDS, ...systemCommands, ...commandHistory])];
           const filteredCommands = allCommands.filter((cmd) => cmd.startsWith(command));
           setSuggestions(filteredCommands);
         }
+      } else if (command === 'bun' && parts.length > 1) {
+        const bunArg = parts.slice(1).join(' ');
+        const filteredBunCommands = BUN_COMMANDS.filter((cmd) => cmd.startsWith(bunArg));
+        setSuggestions(filteredBunCommands.map(cmd => `bun ${cmd}`));
       } else if (['cd', 'ls', 'cat', 'rm', 'mkdir'].includes(command) && (inputValue.endsWith(' ') || lastPart)) {
         try {
           const entries = await invoke<string[]>('list_dir_contents', { path: currentDir });
           const filteredEntries = entries.filter((entry) => entry.startsWith(lastPart));
-          setSuggestions(filteredEntries);
+          setSuggestions(filteredEntries.map(entry => `${command} ${entry}`));
         } catch (error) {
           console.error('Error fetching directory contents:', error);
           setSuggestions([]);
@@ -55,7 +60,7 @@ export function useAutocomplete(inputValue: string, currentDir: string) {
     };
 
     void fetchSuggestions();
-  }, [inputValue, currentDir, systemCommands]);
+  }, [inputValue, currentDir, systemCommands, commandHistory]);
 
   return { suggestions, setSuggestions };
 }

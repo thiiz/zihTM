@@ -19,6 +19,7 @@ export default function HomePage() {
     handleKeyDown,
     analyzeLastError,
     handleSuggestionClick,
+    killProcess,
   } = useTerminal();
 
   return (
@@ -37,6 +38,7 @@ export default function HomePage() {
         onFormSubmit={handleFormSubmit}
         onKeyDown={handleKeyDown}
         onSuggestionClick={handleSuggestionClick}
+        onKillProcess={killProcess}
       />
     </div>
   );
