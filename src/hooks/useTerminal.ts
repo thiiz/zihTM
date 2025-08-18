@@ -115,7 +115,7 @@ export function useTerminal() {
             setOutputHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
           });
       } else {
-        executeCommand(currentInput);
+        void executeCommand(currentInput);
       }
     }
 
@@ -187,7 +187,7 @@ export function useTerminal() {
         setOutputHistory((prev) => [...prev, 'Process terminated.']);
         setIsProcessRunning(false);
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         const errorMessage = error instanceof Error ? error.message : String(error);
         setOutputHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
         setIsProcessRunning(false);

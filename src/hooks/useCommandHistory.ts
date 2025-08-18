@@ -13,7 +13,10 @@ export function useCommandHistory() {
     try {
       const savedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
       if (savedHistory) {
-        setHistory(JSON.parse(savedHistory));
+        const parsedHistory = JSON.parse(savedHistory) as string[];
+        if (Array.isArray(parsedHistory) && parsedHistory.every((item) => typeof item === 'string')) {
+          setHistory(parsedHistory);
+        }
       }
     } catch (error) {
       console.error('Failed to load command history from localStorage:', error);

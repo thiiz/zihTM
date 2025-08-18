@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 'use client';
 
 import { useEffect } from 'react';
@@ -6,6 +5,7 @@ import { TerminalHeader } from '@/components/TerminalHeader';
 import { TerminalHistory } from '@/components/TerminalHistory';
 import { TerminalInput } from '@/components/TerminalInput';
 import { useTerminal } from '@/hooks/useTerminal';
+
 export default function HomePage() {
   const {
     input,
@@ -47,7 +47,9 @@ export default function HomePage() {
         history={commandHistory}
         onAnalyzeLastError={analyzeLastError}
         currentDir={currentDir}
-        executeCommand={executeCommand}
+        executeCommand={(command) => {
+          void executeCommand(command);
+        }}
       />
       <TerminalHistory
         history={commandHistory}
@@ -60,7 +62,9 @@ export default function HomePage() {
         suggestions={suggestions}
         activeSuggestion={activeSuggestion}
         onInputChange={handleInputChange}
-        onFormSubmit={handleFormSubmit}
+        onFormSubmit={(e) => {
+          handleFormSubmit(e);
+        }}
         onKeyDown={handleKeyDown}
         onSuggestionClick={handleSuggestionClick}
         onKillProcess={killProcess}
