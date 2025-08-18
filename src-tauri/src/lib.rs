@@ -252,8 +252,12 @@ async fn kill_process(app_state: State<'_, AppState>) -> Result<(), String> {
     if let Some(pid) = pid_opt.take() {
         #[cfg(windows)]
         {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+
             let status = Command::new("taskkill")
                 .args(&["/PID", &pid.to_string(), "/T", "/F"])
+                .creation_flags(CREATE_NO_WINDOW)
                 .status()
                 .await
                 .map_err(|e| e.to_string())?;
