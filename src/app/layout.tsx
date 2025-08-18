@@ -1,7 +1,7 @@
 "use client";
-import { Geist, Geist_Mono } from "next/font/google";
-import "@/styles/globals.css";
 import TitleBar from "@/components/TitleBar";
+import "@/styles/globals.css";
+import { Geist, Geist_Mono } from "next/font/google";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,7 +24,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <TitleBar />
-        <main className="h-screen overflow-y-auto">{children}</main>
+        <main className="h-screen overflow-y-auto bg-black/50">{children}</main>
       </body>
     </html>
   );
