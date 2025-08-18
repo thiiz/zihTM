@@ -178,6 +178,15 @@ export function useTerminal() {
       });
   };
 
+  const executeCommand = (commandStr: string) => {
+    setOutputHistory((prev) => [...prev, `$ ${commandStr}`]);
+    addCommandToHistory(commandStr);
+    const [command, ...args] = commandStr.split(/\s+/);
+    invoke('execute_command', { command, args }).catch((error: unknown) => {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setOutputHistory((prev) => [...prev, `[ERROR] ${errorMessage}`]);
+    });
+  };
 
   return {
     input,
@@ -192,5 +201,6 @@ export function useTerminal() {
     analyzeLastError,
     handleSuggestionClick,
     killProcess,
+    executeCommand,
   };
 }

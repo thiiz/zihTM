@@ -5,7 +5,6 @@ import { TerminalHeader } from '@/components/TerminalHeader';
 import { TerminalHistory } from '@/components/TerminalHistory';
 import { TerminalInput } from '@/components/TerminalInput';
 import { useTerminal } from '@/hooks/useTerminal';
-
 export default function HomePage() {
   const {
     input,
@@ -20,6 +19,7 @@ export default function HomePage() {
     analyzeLastError,
     handleSuggestionClick,
     killProcess,
+    executeCommand,
   } = useTerminal();
 
   return (
@@ -28,6 +28,7 @@ export default function HomePage() {
         history={commandHistory}
         onAnalyzeLastError={analyzeLastError}
         currentDir={currentDir}
+        executeCommand={executeCommand}
       />
       <TerminalHistory history={commandHistory} endOfHistoryRef={endOfHistoryRef} />
       <TerminalInput

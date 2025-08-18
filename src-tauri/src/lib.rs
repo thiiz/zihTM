@@ -8,6 +8,8 @@ use std::env;
 use std::fs;
 use tauri_plugin_global_shortcut::{ShortcutState};
 use tokio::sync::Mutex;
+use std::collections::HashMap;
+use serde_json::Value;
 
 struct AppState {
     child_process: Mutex<Option<Child>>,
@@ -210,6 +212,48 @@ async fn kill_process(state: State<'_, AppState>) -> Result<(), String> {
     }
 }
 
+#[tauri::command]
+fn detect_package_manager() -> Result<String, String> {
+    let current_dir = env::current_dir().map_err(|e| e.to_string())?;
+    if current_dir.join("bun.lockb").exists() {
+        Ok("bun".to_string())
+    } else if current_dir.join("pnpm-lock.yaml").exists() {
+        Ok("pnpm".to_string())
+    } else if current_dir.join("yarn.lock").exists() {
+        Ok("yarn".to_string())
+    } else if current_dir.join("package-lock.json").exists() {
+        Ok("npm".to_string())
+    } else {
+        Ok("npm".to_string()) // Default to npm
+    }
+}
+
+#[tauri::command]
+fn get_package_json_scripts() -> Result<HashMap<String, String>, String> {
+    let current_dir = env::current_dir().map_err(|e| e.to_string())?;
+    let package_json_path = current_dir.join("package.json");
+
+    if !package_json_path.exists() {
+        return Ok(HashMap::new());
+    }
+
+    let file_content = fs::read_to_string(package_json_path).map_err(|e| e.to_string())?;
+    let json: Value = serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
+
+    let mut scripts = HashMap::new();
+    if let Some(scripts_value) = json.get("scripts") {
+        if let Some(scripts_map) = scripts_value.as_object() {
+            for (key, value) in scripts_map {
+                if let Some(value_str) = value.as_str() {
+                    scripts.insert(key.clone(), value_str.to_string());
+                }
+            }
+        }
+    }
+
+    Ok(scripts)
+}
+
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
@@ -275,7 +319,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             get_current_dir,
             list_dir_contents,
             get_path_suggestions,
-            kill_process
+            kill_process,
+            detect_package_manager,
+            get_package_json_scripts
         ])
         .run(tauri::generate_context!())?;
     Ok(())
