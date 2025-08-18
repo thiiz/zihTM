@@ -4,7 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { useEffect, useState } from 'react';
 
 const FREQUENT_COMMANDS = ['git', 'ls', 'cd', 'clear', 'cls', 'npm', 'pnpm', 'yarn', 'bun', 'code', 'vim', 'nvim', 'nano', 'cat', 'rm', 'mkdir'];
-const BUN_COMMANDS = ['run dev', 'run build', 'run start', 'install', 'add', 'remove'];
+const BUN_COMMANDS = ['run dev', 'run build', 'run start', 'install', 'add', 'remove', 'test'];
 
 export function useAutocomplete(inputValue: string, currentDir: string, commandHistory: string[]) {
   const [suggestions, setSuggestions] = useState<string[]>([]);

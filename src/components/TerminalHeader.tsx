@@ -14,8 +14,8 @@ export function TerminalHeader({ history, onAnalyzeLastError, currentDir, execut
   const hasError = history.some(h => h.includes('[ERROR]'));
 
   return (
-    <header className="flex justify-between gap-x-4 items-center p-3 border-b border-gray-700 pt-10">
-      <div className="flex items-center gap-x-2">
+    <header className="flex justify-between gap-x-4 items-center p-3 border-b border-gray-700 pt-6">
+      {/* <div className="flex items-center gap-x-2">
         <ProjectScripts executeCommand={executeCommand} currentDir={currentDir} />
         <Link href="/settings" className="text-blue-400 hover:underline">
           Settings
@@ -27,7 +27,7 @@ export function TerminalHeader({ history, onAnalyzeLastError, currentDir, execut
         disabled={!hasError}
       >
         Analyze Error
-      </button>
+      </button> */}
     </header>
   );
 }

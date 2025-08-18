@@ -40,18 +40,18 @@ export default function TitleBar() {
       >
         <button
           onClick={handleClose}
-          className="w-3 h-3 bg-red-500 rounded-full"
+          className="w-2.5 h-2.5 bg-red-500 rounded-full"
         />
         <button
           onClick={handleMinimize}
-          className="w-3 h-3 bg-yellow-500 rounded-full"
+          className="w-2.5 h-2.5 bg-yellow-500 rounded-full"
         />
         <button
           onClick={handleMaximize}
-          className="w-3 h-3 bg-green-500 rounded-full"
+          className="w-2.5 h-2.5 bg-green-500 rounded-full"
         />
       </div>
-      <div className="text-sm text-gray-400">
+      <div className="text-xs text-gray-400">
         <span>{currentDir}</span>
       </div>
       <div
@@ -61,7 +61,7 @@ export default function TitleBar() {
       >
         <button
           onClick={handlePin}
-          className={`w-3 h-3 rounded-full ${isPinned ? "bg-blue-500" : "bg-gray-400"
+          className={`w-2.5 h-2.5 rounded-full ${isPinned ? "bg-blue-500" : "bg-gray-400"
             }`}
         />
       </div>

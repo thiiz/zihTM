@@ -205,7 +205,9 @@ export function useTerminal() {
     }
     setOutputHistory((prev) => [...prev, `$ ${commandStr}`]);
     addCommandToHistory(commandStr);
-    const [command, ...args] = commandStr.split(/\s+/);
+    const parts = commandStr.split(/\s+/);
+    const command = parts[0];
+    const args = parts.slice(1);
 
     setIsProcessRunning(true);
 

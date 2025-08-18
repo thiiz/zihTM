@@ -152,15 +152,17 @@ async fn execute_command(
     app_state: State<'_, AppState>,
     dir_state: State<'_, DirectoryState>,
 ) -> Result<(), String> {
-    let mut path = dir_state.path.lock().await;
+    let path = dir_state.path.lock().await;
+    let full_command = format!("{} {}", command, args.join(" "));
 
-    if command == "cd" {
-        let new_dir_str = args.get(0).map_or("..", |s| s.as_str());
+    if full_command.starts_with("cd ") {
+        let new_dir_str = full_command.trim_start_matches("cd ").trim();
         let new_dir = path.join(new_dir_str);
 
         if new_dir.is_dir() {
-            *path = dunce::canonicalize(new_dir).map_err(|e| e.to_string())?;
-            window.emit("directory-changed", Some(path.to_string_lossy().to_string())).unwrap();
+            let mut path_unlocked = dir_state.path.lock().await;
+            *path_unlocked = dunce::canonicalize(new_dir).map_err(|e| e.to_string())?;
+            window.emit("directory-changed", Some(path_unlocked.to_string_lossy().to_string())).unwrap();
         } else {
             window.emit("terminal-output", Some(format!("[ERROR] Directory not found: {}", new_dir_str))).unwrap();
         }
@@ -168,10 +170,9 @@ async fn execute_command(
         window.emit("terminal-terminated", Some("".to_string())).unwrap();
         return Ok(());
     }
+
     #[cfg(windows)]
-    use std::os::windows::process::CommandExt;
     const CREATE_NO_WINDOW: u32 = 0x08000000;
-    let full_command = format!("{} {}", command, args.join(" "));
     let nu_path = std::path::PathBuf::from("bin/windows/nu.exe");
 
     let child_process = Command::new(nu_path)
@@ -186,7 +187,7 @@ async fn execute_command(
     let child_process = Command::new("sh")
         .arg("-c")
         .arg(&full_command)
-        .current_dir(&current_dir)
+        .current_dir(&*path)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn();
@@ -252,7 +253,6 @@ async fn kill_process(app_state: State<'_, AppState>) -> Result<(), String> {
     if let Some(pid) = pid_opt.take() {
         #[cfg(windows)]
         {
-            use std::os::windows::process::CommandExt;
             const CREATE_NO_WINDOW: u32 = 0x08000000;
 
             let status = Command::new("taskkill")
