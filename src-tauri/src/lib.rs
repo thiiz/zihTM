@@ -27,7 +27,16 @@ fn get_current_dir() -> Result<String, String> {
 fn list_dir_contents(path: String) -> Result<Vec<String>, String> {
     fs::read_dir(path)
         .map_err(|e| e.to_string())?
-        .map(|res| res.map(|e| e.file_name().into_string().unwrap_or_default()))
+        .map(|res| {
+            res.map(|e| {
+                let name = e.file_name().into_string().unwrap_or_default();
+                if e.metadata().map(|m| m.is_dir()).unwrap_or(false) {
+                    format!("{}/", name) // adiciona `/` no final se for diretório
+                } else {
+                    name
+                }
+            })
+        })
         .collect::<Result<Vec<String>, std::io::Error>>()
         .map_err(|e| e.to_string())
 }

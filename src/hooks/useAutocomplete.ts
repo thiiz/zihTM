@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { useEffect, useState } from 'react';
 
 const FREQUENT_COMMANDS = ['git', 'ls', 'cd', 'clear', 'cls', 'npm', 'pnpm', 'yarn', 'bun', 'code', 'vim', 'nvim', 'nano', 'cat', 'rm', 'mkdir'];
 const BUN_COMMANDS = ['run dev', 'run build', 'run start', 'install', 'add', 'remove'];
@@ -37,8 +37,12 @@ export function useAutocomplete(inputValue: string, currentDir: string, commandH
         if (inputValue.endsWith(' ')) {
           setSuggestions([]);
         } else {
-          const allCommands = [...new Set([...FREQUENT_COMMANDS, ...systemCommands, ...commandHistory])];
-          const filteredCommands = allCommands.filter((cmd) => cmd.startsWith(command));
+          const historySet = Array.from(new Set(commandHistory.reverse()));
+          const allCommands = [...new Set([...historySet, ...FREQUENT_COMMANDS, ...systemCommands])];
+
+          const filteredCommands = allCommands.filter((cmd) =>
+            cmd.toLowerCase().startsWith(command.toLowerCase())
+          );
           setSuggestions(filteredCommands);
         }
       } else if (command === 'bun' && parts.length > 1) {
