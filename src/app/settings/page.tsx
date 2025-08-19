@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 export default function SettingsPage() {
   const [apiKey, setApiKey] = useState('');
@@ -25,16 +26,15 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="container mx-auto p-4 bg-gray-900 text-white min-h-screen pt-10">
+    <div className="container mx-auto p-4  text-white min-h-screen pt-12">
       <header className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold">Settings</h1>
         <Link href="/" className="text-blue-400 hover:underline">
-          &larr; Back to Terminal
+          <ArrowLeft />
         </Link>
       </header>
 
       <main>
-        <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
+        <div className="bg-black/30 p-6 rounded-lg shadow-lg">
           <h2 className="text-xl mb-4">Gemini API Key</h2>
           <p className="text-gray-400 mb-4">
             Enter your Gemini API key to enable AI-powered features.
@@ -47,7 +47,7 @@ export default function SettingsPage() {
                 setApiKey(e.target.value);
               }}
               placeholder="Enter your API key"
-              className="flex-grow p-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-grow p-2 bg-black/30 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <button
               onClick={handleSave}

@@ -1,11 +1,15 @@
-import React, { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { RoundedButton } from './RoundedButton';
-
+import { Audiowide } from 'next/font/google';
+import React, { useEffect, useState } from 'react';
 interface ProjectScriptsProps {
   executeCommand: (command: string) => void;
   currentDir: string;
 }
+const stalinistOne = Audiowide({
+  variable: "--font-audiowide",
+  subsets: ["latin"],
+  weight: ['400']
+});
 
 const ProjectScripts: React.FC<ProjectScriptsProps> = ({ executeCommand, currentDir }) => {
   const [scripts, setScripts] = useState<Record<string, string>>({});
@@ -36,15 +40,14 @@ const ProjectScripts: React.FC<ProjectScriptsProps> = ({ executeCommand, current
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <p className="text-sm font-bold">Scripts:</p>
+    <div className="flex items-center gap-2 ml-4">
       {Object.keys(scripts).map((scriptName) => (
         <button
           key={scriptName}
           onClick={() => {
             handleScriptClick(scriptName);
           }}
-          className="px-2 py-1 text-xs bg-gray-700 rounded hover:bg-gray-600"
+          className={`py-1 px-2 uppercase text-xs bg-black/50 rounded transition-colors hover:bg-black/100 ${stalinistOne.className}`}
         >
           {scriptName}
         </button>

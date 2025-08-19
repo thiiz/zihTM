@@ -1,7 +1,7 @@
 "use client";
 import TitleBar from "@/components/TitleBar";
 import "@/styles/globals.css";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Stalinist_One } from "next/font/google";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -12,6 +12,8 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+
 
 export default function RootLayout({
   children,
